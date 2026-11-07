@@ -56,7 +56,9 @@ test("Pi loads the extension, renders the viewer, and queues completion", {
   const dispatch = async (name) => {
     for (const handler of extension.handlers.get(name) ?? []) await handler({}, ctx);
   };
-  const tool = extension.tools.get("monitor").definition;
+  const tool = extension.tools.get("background").definition;
+  assert.equal(extension.tools.get("monitor").definition.defaultActive, false);
+  assert.ok(extension.commands.has("jobs"));
   const execute = (params) => tool.execute("test", params, new AbortController().signal, undefined, ctx);
   const checkMessageRendering = (message, output) => {
     const original = message.content;
@@ -99,6 +101,11 @@ test("Pi loads the extension, renders the viewer, and queues completion", {
   await dispatch("session_start");
   try {
     assert.deepEqual(widget.render(40), []);
+    await assert.rejects(execute({ action: "start" }), /exactly one/);
+    await assert.rejects(execute({ action: "start", prompt: "review", command: "true" }), /exactly one/);
+    await assert.rejects(execute({ action: "start", command: "true", model: "test/model" }), /model requires prompt/);
+    await assert.rejects(execute({ action: "start", prompt: " " }), /Prompt must not be empty/);
+    await assert.rejects(execute({ action: "status", prompt: "review" }), /only supported for start/);
     const started = await execute({ action: "start", command: "sleep 0.1; printf done", title: "CI 日本語 🚀" });
     assert.match(started.content[0].text, /Started in background/);
     assert.match(widget.render(80)[0], /CI.*running/);

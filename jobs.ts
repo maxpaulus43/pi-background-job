@@ -1,11 +1,13 @@
 import { spawn, type ChildProcess } from "node:child_process";
 import { stripVTControlCharacters } from "node:util";
+import { AgentStream, agentArgs } from "./agent.ts";
 
 const OUTPUT_LIMIT = 32 * 1024;
 
 interface Job {
   id: string;
   command: string;
+  agent?: AgentStream;
   cwd: string;
   title: string;
   status: "running" | "cancelled" | "completed" | "failed";
@@ -45,16 +47,19 @@ export class Jobs {
     this.onCheck = onCheck;
   }
 
-  start(command: string, cwd: string, title = command, checkAfterSeconds?: number) {
+  start(task: string | { prompt: string; model?: string }, cwd: string, title?: string, checkAfterSeconds?: number) {
     if (this.closed) throw new Error("Monitor session is closed");
     if (process.platform === "win32") throw new Error("Monitor requires macOS or Linux");
+    const isAgent = typeof task !== "string";
+    const args = isAgent ? agentArgs(task.prompt, task.model) : ["-c", task];
+    const command = isAgent ? `pi agent${task.model ? ` (${task.model})` : ""}: ${task.prompt}` : task;
     if (!command.trim()) throw new Error("Command must not be empty");
     if (checkAfterSeconds !== undefined) validateCheckDelay(checkAfterSeconds);
     const job: Job = {
-      id: String(this.nextId++), command, cwd, title,
+      id: String(this.nextId++), command, cwd, title: title ?? (isAgent ? task.prompt.slice(0, 80) : command),
       status: "running", output: "", truncated: false, started: Date.now(),
     };
-    const child = spawn("/bin/bash", ["-c", command], {
+    const child = spawn(isAgent ? "pi" : "/bin/bash", args, {
       cwd, detached: true, stdio: ["ignore", "pipe", "pipe"],
     });
     job.child = child;
@@ -66,10 +71,11 @@ export class Jobs {
         job.truncated = true;
       }
     };
-    for (const stream of [child.stdout, child.stderr]) {
-      stream.setEncoding("utf8");
-      stream.on("data", append);
-    }
+    if (isAgent) job.agent = new AgentStream(append);
+    child.stdout.setEncoding("utf8");
+    child.stderr.setEncoding("utf8");
+    child.stdout.on("data", (chunk: string) => job.agent ? job.agent.push(chunk) : append(chunk));
+    child.stderr.on("data", append);
     child.on("error", (error) => { job.error = error.message; });
     job.done = new Promise((resolve) => {
       child.on("close", (code, signal) => {
@@ -77,7 +83,9 @@ export class Jobs {
         job.code = code;
         job.signal = signal;
         job.ended = Date.now();
-        job.status = job.stopping ? "cancelled" : code === 0 ? "completed" : "failed";
+        job.agent?.finish();
+        job.error ??= job.agent?.error;
+        job.status = job.stopping ? "cancelled" : code === 0 && !job.error ? "completed" : "failed";
         if (!this.closed) this.onFinish(job);
         resolve();
       });
@@ -133,13 +141,16 @@ export class Jobs {
   }
 }
 
-export function describe(job: Job) {
+export function describe(job: Job, resultOnly = false) {
+  const final = resultOnly && job.agent && job.status !== "running";
   return clean([
     `Monitor ${job.id}: ${job.title} — ${job.status}`,
     `Command: ${job.command}`, `Directory: ${job.cwd}`,
     `Exit code: ${job.code ?? "—"}${job.signal ? ` (${job.signal})` : ""}`,
     job.error ?? "",
-    job.truncated ? "[Earlier output discarded; showing last 32,768 characters]" : "",
-    job.output,
+    !final && job.truncated ? "[Earlier output discarded; showing last 32,768 characters]" : "",
+    final ? job.agent!.answer || "(No final answer)" : job.output,
+    final && job.agent!.answerTruncated ? "[Final answer truncated to first 32,768 characters]" : "",
+    final && job.status === "failed" ? `Diagnostics:\n${job.output.slice(-4096)}` : "",
   ].filter(Boolean).join("\n"));
 }

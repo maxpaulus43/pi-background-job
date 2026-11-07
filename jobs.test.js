@@ -35,7 +35,7 @@ test("nonzero exit and spawn failure are reported", async () => {
 test("bounds output and strips terminal controls", async () => {
   const jobs = new Jobs();
   try {
-    const job = jobs.start("printf '\\033[31mred\\033[0m'; yes x | head -c 70000", cwd);
+    const job = jobs.start(`"${process.execPath}" -e 'process.stdout.write("x".repeat(70000))'`, cwd);
     await job.done;
     assert.equal(job.output.length, 32768);
     assert.equal(job.truncated, true);
@@ -153,12 +153,15 @@ test("completion, cancellation, and shutdown cancel pending check-ins", async (t
     assert.deepEqual(checks, []);
     const cancelled = jobs.start("sleep 30", cwd, "cancelled job", 10);
     const stopped = jobs.stop(cancelled.id);
+    // Let TERM finish before the mocked clock jumps past the KILL grace period.
+    await cancelled.done;
     t.mock.timers.tick(10000);
     await stopped;
     await cancelled.done;
     assert.deepEqual(checks, []);
-    jobs.start("sleep 30", cwd, "shutdown job", 10);
+    const shutdown = jobs.start("sleep 30", cwd, "shutdown job", 10);
     const closed = jobs.close();
+    await shutdown.done;
     t.mock.timers.tick(10000);
     await closed;
     assert.deepEqual(checks, []);
