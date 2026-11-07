@@ -5,10 +5,10 @@ import { createRequire } from "node:module";
 import { stripVTControlCharacters } from "node:util";
 import { visibleWidth } from "@earendil-works/pi-tui";
 
-const host = process.env.PI_MONITOR_HOST;
+const host = process.env.PI_JOB_HOST;
 
 test("Pi loads the extension, renders the viewer, and queues completion", {
-  skip: !host && "Set PI_MONITOR_HOST to your installed Pi package directory",
+  skip: !host && "Set PI_JOB_HOST to your installed Pi package directory",
   timeout: 10000,
 }, async () => {
   const { loadExtensions } = await import(pathToFileURL(`${host}/dist/core/extensions/loader.js`).href);
@@ -57,7 +57,8 @@ test("Pi loads the extension, renders the viewer, and queues completion", {
     for (const handler of extension.handlers.get(name) ?? []) await handler({}, ctx);
   };
   const tool = extension.tools.get("background").definition;
-  assert.equal(extension.tools.get("monitor").definition.defaultActive, false);
+  assert.deepEqual([...extension.tools.keys()], ["background"]);
+  assert.deepEqual([...extension.commands.keys()], ["jobs"]);
   assert.ok(extension.commands.has("jobs"));
   const execute = (params) => tool.execute("test", params, new AbortController().signal, undefined, ctx);
   const checkMessageRendering = (message, output) => {
@@ -66,7 +67,7 @@ test("Pi loads the extension, renders the viewer, and queues completion", {
     assert.ok(renderer);
     const collapsed = renderer(message, { expanded: false, outputPad: 1 }, theme);
     assert.equal(collapsed.render(80).length, 1);
-    assert.match(collapsed.render(80)[0], /▸.*Monitor/);
+    assert.match(collapsed.render(80)[0], /▸.*Job/);
     assert.ok(!collapsed.render(80)[0].includes(output));
     assert.ok(collapsed.render(20).every((line) => visibleWidth(line) <= 20));
     const click = { type: "click", button: "left", y: 0 };
@@ -80,7 +81,7 @@ test("Pi loads the extension, renders the viewer, and queues completion", {
     rebuilt.handleMouse(click);
     assert.equal(rebuilt.render(80).length, 1);
     const expanded = renderer(message, { expanded: true, outputPad: 1 }, theme);
-    assert.match(expanded.render(80).join("\n"), /▾.*Monitor/);
+    assert.match(expanded.render(80).join("\n"), /▾.*Job/);
     assert.ok(expanded.render(80).join("\n").includes(output));
     assert.equal(message.content, original);
     assert.equal(renderer(message, { expanded: false, outputPad: 1 }, theme).render(80).length, 1);
@@ -89,7 +90,7 @@ test("Pi loads the extension, renders the viewer, and queues completion", {
       for (const shortcut of ["ctrl+o", "ctrl+g"]) {
         setKeybindings(new KeybindingsManager({ "app.tools.expand": { defaultKeys: shortcut } }));
         assert.ok(stripVTControlCharacters(collapsed.render(80)[0]).includes(`(${shortcut} to expand)`));
-        const longMessage = { ...message, content: `Monitor ${"long title ".repeat(30)}` };
+        const longMessage = { ...message, content: `Job ${"long title ".repeat(30)}` };
         const longLine = renderer(longMessage, { expanded: false, outputPad: 1 }, theme).render(80)[0];
         assert.ok(stripVTControlCharacters(longLine).includes(`(${shortcut} to expand)`));
         assert.ok(visibleWidth(longLine) <= 80);
@@ -115,7 +116,7 @@ test("Pi loads the extension, renders the viewer, and queues completion", {
       assert.equal(isClosed(), false);
       assert.match((await execute({ action: "status", id: "1" })).content[0].text, /running/);
     };
-    await extension.commands.get("monitors").handler("", ctx);
+    await extension.commands.get("jobs").handler("", ctx);
     while (!messages.length) await new Promise((resolve) => setTimeout(resolve, 10));
     assert.equal(messages.length, 1);
     assert.match(messages[0].message.content, /completed[\s\S]*done/);
@@ -126,7 +127,7 @@ test("Pi loads the extension, renders the viewer, and queues completion", {
     const finishedCheck = await execute({ action: "status", id: "1", checkAfterSeconds: 1 });
     assert.match(finishedCheck.content[0].text, /No check-in scheduled/);
     await assert.rejects(execute({ action: "status", checkAfterSeconds: 1 }), /id is required/);
-    await assert.rejects(execute({ action: "status", id: "missing", checkAfterSeconds: 1 }), /Unknown monitor/);
+    await assert.rejects(execute({ action: "status", id: "missing", checkAfterSeconds: 1 }), /Unknown job/);
     await execute({ action: "start", command: "sleep 30" });
     assert.match(widget.render(80)[0], /#2.*running/);
     await execute({ action: "stop", id: "2" });
@@ -135,25 +136,25 @@ test("Pi loads the extension, renders the viewer, and queues completion", {
       component.handleInput("d");
       assert.equal(isClosed(), false);
       assert.match(component.render(80).join("\n"), /#1.*CI/);
-      await assert.rejects(execute({ action: "status", id: "2" }), /Unknown monitor/);
+      await assert.rejects(execute({ action: "status", id: "2" }), /Unknown job/);
       component.handleInput("d");
       assert.equal(isClosed(), true);
       assert.deepEqual(component.render(80), []);
-      assert.equal((await execute({ action: "status" })).content[0].text, "No monitors");
+      assert.equal((await execute({ action: "status" })).content[0].text, "No jobs");
     };
-    await extension.commands.get("monitors").handler("", ctx);
+    await extension.commands.get("jobs").handler("", ctx);
     assert.equal(messages.length, 1);
     await execute({ action: "start", command: "sleep 30" });
     await dispatch("session_shutdown");
     assert.equal(messages.length, 1);
     await dispatch("session_start");
-    assert.equal((await execute({ action: "status" })).content[0].text, "No monitors");
+    assert.equal((await execute({ action: "status" })).content[0].text, "No jobs");
     const scheduled = await execute({
       action: "start", command: "printf 'progress\\n'; printf 'line-%s\\n' {1..40}; sleep 30", title: "Long job", checkAfterSeconds: 1,
     });
     assert.match(scheduled.content[0].text, /check-in scheduled after 1 seconds/);
     while (messages.length < 2) await new Promise((resolve) => setTimeout(resolve, 10));
-    assert.equal(messages[1].message.customType, "monitor-check");
+    assert.equal(messages[1].message.customType, "job-check");
     assert.match(messages[1].message.content, /Scheduled check-in:[\s\S]*running[\s\S]*progress/);
     assert.deepEqual(messages[1].options, { triggerTurn: true, deliverAs: "followUp" });
     checkMessageRendering(messages[1].message, "progress");
@@ -164,8 +165,8 @@ test("Pi loads the extension, renders the viewer, and queues completion", {
     await execute({ action: "status", id: "1" });
     assert.equal((await execute({ action: "status" })).content[0].text.split("\n").length, 1);
     while (messages.length < 3) await new Promise((resolve) => setTimeout(resolve, 10));
-    assert.equal(messages[2].message.customType, "monitor-check");
-    assert.match(messages[2].message.content, /Monitor 1:[\s\S]*progress/);
+    assert.equal(messages[2].message.customType, "job-check");
+    assert.match(messages[2].message.content, /Job 1:[\s\S]*progress/);
     assert.deepEqual(messages[2].options, { triggerTurn: true, deliverAs: "followUp" });
     interact = async (component) => {
       const tail = component.render(80);
@@ -196,7 +197,7 @@ test("Pi loads the extension, renders the viewer, and queues completion", {
       assert.deepEqual(component.render(80), tail);
       assert.equal(component.handleMouse({ type: "click" }), undefined);
     };
-    await extension.commands.get("monitors").handler("", ctx);
+    await extension.commands.get("jobs").handler("", ctx);
     await execute({ action: "stop", id: "1" });
     assert.equal(messages.length, 3);
   } finally { await dispatch("session_shutdown"); }

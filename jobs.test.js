@@ -123,7 +123,7 @@ test("invalid rescheduling preserves reminders; finished jobs cannot be rearmed"
     for (const seconds of [0, -1, 0.5, NaN, Infinity, 2147484]) {
       assert.throws(() => jobs.scheduleCheck(job.id, seconds), /checkAfterSeconds/);
     }
-    assert.throws(() => jobs.scheduleCheck("missing", 10), /Unknown monitor/);
+    assert.throws(() => jobs.scheduleCheck("missing", 10), /Unknown job/);
     t.mock.timers.tick(10000);
     assert.deepEqual(checks, [job.id]);
     const finished = jobs.start("true", cwd);

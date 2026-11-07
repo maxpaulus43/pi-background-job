@@ -30,7 +30,7 @@ jobs:
         id: check
         run: |
           LOCAL=$(node -p "require('./package.json').version")
-          PUBLISHED=$(npm view @maxpaulus/pi-monitor version 2>/dev/null || echo "none")
+          PUBLISHED=$(npm view @maxpaulus/pi-background-job version 2>/dev/null || echo "none")
           echo "local=$LOCAL"         >> "$GITHUB_OUTPUT"
           echo "published=$PUBLISHED" >> "$GITHUB_OUTPUT"
           if [ "$LOCAL" != "$PUBLISHED" ]; then

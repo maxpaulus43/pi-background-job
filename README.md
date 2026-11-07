@@ -1,4 +1,4 @@
-# pi-monitor
+# pi-background-job
 
 Run shell tasks or delegate work to Pi agents while continuing your conversation. Watch live progress in `/jobs`; when a job exits, Pi receives its result and automatically follows up.
 
@@ -8,11 +8,11 @@ Run shell tasks or delegate work to Pi agents while continuing your conversation
 pi -e ./index.ts
 ```
 
-Or install this directory with `pi install /absolute/path/to/pi-monitor`, then reload Pi.
+Or install this directory with `pi install /absolute/path/to/pi-background-job`, then reload Pi.
 
 Ask Pi:
 
-> Monitor PR #123's CI. When it finishes, summarize any failures.
+> Watch PR #123's CI. When it finishes, summarize any failures.
 
 Pi can start `gh pr checks 123 --watch` with the `background` tool. The command handles polling; the extension listens for output and exit. Shell jobs use no model calls unless the command itself invokes a model. Agent jobs and completion/check-in follow-ups use normal, billable model calls. When Pi is busy, the result queues as a follow-up rather than interrupting.
 
@@ -45,16 +45,14 @@ Use `status` or `stop` with the returned job ID for either kind of job. Completi
 
 ## Controls
 
-- `/jobs` or **Ctrl+Shift+M** opens the live viewer. `/monitors` remains an alias.
-- In fullscreen Pi, click the monitor widget to open it.
+- `/jobs` or **Ctrl+Shift+M** opens the live viewer.
+- In fullscreen Pi, click the job widget to open it.
 - **Left/right** switches jobs; **up/down** scrolls output. In fullscreen Pi, the mouse wheel also scrolls inside the viewer; regular terminal mode leaves the wheel to terminal scrollback.
 - Check-in and completion messages collapse to one line. Use Pi's expand toggle (default **Ctrl+O**) to expand or collapse their full output. Collapsed messages show your configured shortcut. In fullscreen Pi, click the message header to expand or collapse it.
 - **s** stops a running job; **d** dismisses a finished job; **Escape** closes the viewer.
 - The widget hides when no jobs are running. Finished jobs stay in `/jobs` until dismissed. Dismissing the last job closes the viewer; messages already delivered to the conversation remain.
 
 The model-facing `background` tool accepts `action: "start" | "status" | "stop"`, plus `command` or `prompt`, optional `model` and `title`, or a job `id`. Status without an ID lists jobs. Cancellation does not trigger an automatic follow-up.
-
-The old `monitor` tool remains an inactive compatibility alias. If your `defaultTools` or CLI `--tools` explicitly lists `monitor`, replace it with `background` to expose the new name and guidance.
 
 For a long-running job, the model can request a one-time check-in at creation:
 
@@ -88,7 +86,7 @@ The delay starts from this call and replaces any pending reminder for that job. 
 - Progress output is limited to the last 32,768 characters per job. Earlier output is discarded. Agent final answers are stored separately, limited to their first 32,768 characters with an explicit truncation notice. Terminal control sequences are removed before display or model delivery. JSON records over 8,388,608 characters fail agent-stream validation.
 - Cancellation sends TERM to the process group, then KILL after 500 ms. Commands that deliberately daemonize into another process group are not supported. A forced Pi crash cannot run cleanup.
 - This is not a sandbox. Only run commands you trust. Command output enters the conversation; avoid commands that print secrets. CI commands require your existing `gh` authentication.
-- Keep Pi open for automatic follow-ups. Headless one-shot invocations are not a persistent monitor service.
+- Keep Pi open for automatic follow-ups. Headless one-shot invocations are not a persistent job service.
 
 ## Releases
 
@@ -103,9 +101,9 @@ npx --no-install changelogger install
 
 The pre-commit hook generates and stages a changelog entry when the staged package version changes. It uses local LM Studio when available and falls back to commit subjects.
 
-The `Publish` workflow runs on pushes to `main` or manual dispatch. If the local version differs from npm, it publishes `@maxpaulus/pi-monitor`, creates a version tag, and creates a GitHub release using `CHANGELOG.md`.
+The `Publish` workflow runs on pushes to `main` or manual dispatch. If the local version differs from npm, it publishes `@maxpaulus/pi-background-job`, creates a version tag, and creates a GitHub release using `CHANGELOG.md`.
 
-Before the first release, create/connect `maxpaulus43/pi-monitor` on GitHub and configure the npm package's trusted publisher for that repository and `publish.yml`. Repository metadata alone does not create a Git remote or configure npm authentication. The workflow uses OIDC, not an `NPM_TOKEN` secret.
+Before the first release, create/connect `maxpaulus43/pi-background-job` on GitHub and configure the npm package's trusted publisher for that repository and `publish.yml`. Repository metadata alone does not create a Git remote or configure npm authentication. The workflow uses OIDC, not an `NPM_TOKEN` secret.
 
 For subsequent releases:
 
@@ -127,7 +125,7 @@ npm test
 To include the extension integration test against an installed Pi:
 
 ```sh
-PI_MONITOR_HOST="$(npm root -g)/@earendil-works/pi-coding-agent" npm test
+PI_JOB_HOST="$(npm root -g)/@earendil-works/pi-coding-agent" npm test
 ```
 
 Tests cover background completion, errors, bounded output, terminal sanitization, process-group cancellation, shutdown isolation, tool registration, viewer rendering, automatic follow-up options, and agent streaming/final-answer handling with a fake Pi executable (no model calls). No additional runtime dependencies are needed beyond Pi.

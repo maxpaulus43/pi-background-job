@@ -48,8 +48,8 @@ export class Jobs {
   }
 
   start(task: string | { prompt: string; model?: string }, cwd: string, title?: string, checkAfterSeconds?: number) {
-    if (this.closed) throw new Error("Monitor session is closed");
-    if (process.platform === "win32") throw new Error("Monitor requires macOS or Linux");
+    if (this.closed) throw new Error("Job session is closed");
+    if (process.platform === "win32") throw new Error("Job requires macOS or Linux");
     const isAgent = typeof task !== "string";
     const args = isAgent ? agentArgs(task.prompt, task.model) : ["-c", task];
     const command = isAgent ? `pi agent${task.model ? ` (${task.model})` : ""}: ${task.prompt}` : task;
@@ -95,7 +95,7 @@ export class Jobs {
   }
 
   scheduleCheck(id: string, seconds: number) {
-    if (this.closed) throw new Error("Monitor session is closed");
+    if (this.closed) throw new Error("Job session is closed");
     validateCheckDelay(seconds);
     const job = this.get(id);
     clearTimeout(job.checkTimer);
@@ -108,7 +108,7 @@ export class Jobs {
 
   get(id: string) {
     const job = this.jobs.get(id);
-    if (!job) throw new Error(`Unknown monitor: ${id}`);
+    if (!job) throw new Error(`Unknown job: ${id}`);
     return job;
   }
 
@@ -144,7 +144,7 @@ export class Jobs {
 export function describe(job: Job, resultOnly = false) {
   const final = resultOnly && job.agent && job.status !== "running";
   return clean([
-    `Monitor ${job.id}: ${job.title} — ${job.status}`,
+    `Job ${job.id}: ${job.title} — ${job.status}`,
     `Command: ${job.command}`, `Directory: ${job.cwd}`,
     `Exit code: ${job.code ?? "—"}${job.signal ? ` (${job.signal})` : ""}`,
     job.error ?? "",
