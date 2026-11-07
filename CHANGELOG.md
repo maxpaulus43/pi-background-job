@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.0.4 - 2026-11-07
+- rename completely to pi-background-job
+- turn monitor into job
+- rename completely to pi-background-job
 ## 1.0.3 - 2026-10-30
 - wrap text in job window
 - wrap text in job window
