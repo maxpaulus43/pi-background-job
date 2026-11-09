@@ -81,6 +81,18 @@ test("malformed and oversized records are bounded and reported, not thrown", () 
   }
 });
 
+test("agent cost sums reported usage across assistant messages", () => {
+  const priced = (text, total) => ({
+    ...message(text),
+    message: { ...message(text).message, usage: { cost: { total } } },
+  });
+  const stream = new AgentStream(() => {});
+  feed(stream, priced("first", 0.0021), { type: "tool_execution_start", toolName: "read", args: {} },
+    priced("second", 0.0004), settled);
+  stream.finish();
+  assert.equal(stream.cost.toFixed(4), "0.0025");
+});
+
 test("final answer has its own cap, independent of progress", () => {
   const stream = new AgentStream(() => {});
   feed(stream, message("a".repeat(40000)), settled);

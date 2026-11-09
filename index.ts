@@ -27,8 +27,12 @@ export default function (pi: ExtensionAPI) {
         const seconds = Math.floor(
             ((job.ended ?? Date.now()) - job.started) / 1000,
         );
+        const cost =
+            job.agent && job.agent.cost > 0
+                ? ` · $${job.agent.cost.toFixed(4)}`
+                : "";
         return clean(
-            `#${job.id} ${job.title} · ${job.status} · ${seconds}s`,
+            `#${job.id} ${job.title} · ${job.status} · ${seconds}s${cost}`,
         ).replace(/\n/g, " ");
     };
 

@@ -21,6 +21,7 @@ export class AgentStream {
   private settled = false;
   answer = "";
   answerTruncated = false;
+  cost = 0;
 
   private append: (text: string) => void;
 
@@ -77,6 +78,7 @@ export class AgentStream {
         if (message?.role !== "assistant") break;
         this.messageError = message.stopReason === "error" || message.stopReason === "aborted"
           ? message.errorMessage || `Agent ${message.stopReason}` : undefined;
+        this.cost += message.usage?.cost?.total ?? 0;
         const text = message.content.filter((part) => part.type === "text").map((part) => part.text).join("\n");
         this.answer = text.slice(0, RESULT_LIMIT);
         this.answerTruncated = text.length > RESULT_LIMIT;

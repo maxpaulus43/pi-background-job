@@ -1,5 +1,7 @@
 # Changelog
 
+## 1.0.5 - 2026-11-09
+- test bump
 ## 1.0.4 - 2026-11-07
 - rename completely to pi-background-job
 - turn monitor into job

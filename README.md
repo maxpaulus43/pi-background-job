@@ -39,7 +39,7 @@ Supply exactly one of `command` or `prompt`. `model` is optional, only valid wit
 
 Agents run `pi --mode json --no-session --no-mcp --tools read,bash,edit,write` from PATH, in the parent working directory. They load their own Pi configuration and project instructions, but **do not receive the parent conversation**. Include the scope, constraints, and required context in the prompt. Provider configuration must be available to the child Pi process.
 
-The viewer shows streamed assistant text, tool starts/completions, retries, and errors. Completion delivers the final answer separately from the rolling progress buffer. A provider error fails the job even if Pi exits with code zero. Agents share filesystem permissions and may edit files; assign disjoint scopes when running them concurrently. This is not isolation or a sandbox. Child model usage is not added to the parent's token totals.
+The viewer shows streamed assistant text, tool starts/completions, retries, and errors. Completion delivers the final answer separately from the rolling progress buffer. A provider error fails the job even if Pi exits with code zero. Agents share filesystem permissions and may edit files; assign disjoint scopes when running them concurrently. This is not isolation or a sandbox. Child model usage is not added to the parent's token totals; agent jobs instead show their own cost (`$0.0000`) in the widget, in `/jobs`, and in the delivered result. Shell jobs show no cost.
 
 Use `status` or `stop` with the returned job ID for either kind of job. Completion is automatic: do not poll. For watches, let the command handle polling.
 

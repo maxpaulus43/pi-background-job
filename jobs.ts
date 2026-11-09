@@ -147,6 +147,7 @@ export function describe(job: Job, resultOnly = false) {
     `Job ${job.id}: ${job.title} — ${job.status}`,
     `Command: ${job.command}`, `Directory: ${job.cwd}`,
     `Exit code: ${job.code ?? "—"}${job.signal ? ` (${job.signal})` : ""}`,
+    job.agent && job.agent.cost > 0 ? `Cost: $${job.agent.cost.toFixed(4)}` : "",
     job.error ?? "",
     !final && job.truncated ? "[Earlier output discarded; showing last 32,768 characters]" : "",
     final ? job.agent!.answer || "(No final answer)" : job.output,

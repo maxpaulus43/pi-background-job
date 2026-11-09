@@ -1,6 +1,6 @@
 {
     "name": "@maxpaulus/pi-background-job",
-    "version": "1.0.4",
+    "version": "1.0.5",
     "description": "Background shell tasks and Pi agents with live progress and automatic results",
     "type": "module",
     "repository": {
